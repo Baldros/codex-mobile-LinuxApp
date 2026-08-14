@@ -279,7 +279,7 @@ function isGitRepository(candidate: string) {
 }
 
 function normalizePath(candidate: string) {
-  return process.platform === "win32" ? candidate.toLowerCase() : candidate;
+  return candidate;
 }
 
 function samePath(left: string, right: string) {

@@ -518,9 +518,7 @@ function toSandboxPolicy(input: RunStreamBody, cwd: string) {
 async function runCodexCommand(args: string[]) {
   try {
     const { stdout } = await execFileAsync("codex", args, {
-      timeout: 5000,
-      windowsHide: true,
-      shell: process.platform === "win32"
+      timeout: 5000
     });
     return { ok: true, stdout };
   } catch {

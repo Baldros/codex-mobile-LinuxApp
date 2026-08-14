@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+# Do not let Git inspect or rewrite binary build assets.
+*.jar binary
+*.jks binary
+*.keystore binary
+*.png binary
+*.webp binary

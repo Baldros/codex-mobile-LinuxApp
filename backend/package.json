@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/server.ts",
-    "smoke:app-server": "powershell -ExecutionPolicy Bypass -File ../scripts/smoke_app_server_bridge.ps1",
+    "smoke:app-server": "bash ../scripts/smoke_app_server_bridge.sh",
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",

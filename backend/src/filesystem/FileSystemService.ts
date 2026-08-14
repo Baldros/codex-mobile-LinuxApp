@@ -52,17 +52,6 @@ export class FileSystemService {
 }
 
 function localRoots() {
-  if (process.platform === "win32") {
-    const roots: string[] = [];
-    for (let code = 65; code <= 90; code += 1) {
-      const root = `${String.fromCharCode(code)}:\\`;
-      if (isDirectory(root)) {
-        roots.push(root);
-      }
-    }
-    return roots.length > 0 ? roots : [path.parse(process.cwd()).root];
-  }
-
   return [path.parse(os.homedir()).root || "/"];
 }
 
@@ -92,6 +81,5 @@ function isGitRepository(candidate: string) {
 }
 
 function samePath(left: string, right: string) {
-  const normalize = (value: string) => (process.platform === "win32" ? value.toLowerCase() : value);
-  return normalize(path.resolve(left)) === normalize(path.resolve(right));
+  return path.resolve(left) === path.resolve(right);
 }

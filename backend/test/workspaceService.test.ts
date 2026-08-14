@@ -17,9 +17,9 @@ afterEach(() => {
 
 describe("WorkspaceService", () => {
   it("parses one workspace path per line and ignores comments", () => {
-    expect(parseAllowlistFile("# comment\nE:\\repo\n\nD:\\other\n")).toEqual([
-      "E:\\repo",
-      "D:\\other"
+    expect(parseAllowlistFile("# comment\n/srv/repo\n\n/opt/other\n")).toEqual([
+      "/srv/repo",
+      "/opt/other"
     ]);
   });
 

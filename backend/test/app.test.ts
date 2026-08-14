@@ -197,11 +197,11 @@ describe("Codex bridge HTTP API", () => {
   it("exposes filesystem roots and directory children for folder picking", async () => {
     await close(server);
     const fileSystemService = {
-      listRoots: vi.fn(() => ({ data: [{ name: "E:\\", path: "E:\\", is_git_repo: false }] })),
+      listRoots: vi.fn(() => ({ data: [{ name: "/", path: "/", is_git_repo: false }] })),
       listChildren: vi.fn((candidate: string | null) => ({
         path: candidate,
-        parent: "E:\\",
-        children: [{ name: "repo", path: "E:\\repo", is_git_repo: true }],
+        parent: "/",
+        children: [{ name: "repo", path: "/repo", is_git_repo: true }],
         truncated: false
       }))
     };
@@ -211,13 +211,13 @@ describe("Codex bridge HTTP API", () => {
     const rootsResponse = await fetch(`${baseUrl}/v1/filesystem/roots`);
     const roots = (await rootsResponse.json()) as { data: Array<{ path: string }> };
     expect(rootsResponse.status).toBe(200);
-    expect(roots.data[0]?.path).toBe("E:\\");
+    expect(roots.data[0]?.path).toBe("/");
 
-    const childrenResponse = await fetch(`${baseUrl}/v1/filesystem/children?path=${encodeURIComponent("E:\\")}`);
+    const childrenResponse = await fetch(`${baseUrl}/v1/filesystem/children?path=${encodeURIComponent("/")}`);
     const children = (await childrenResponse.json()) as { children: Array<{ name: string }> };
     expect(childrenResponse.status).toBe(200);
     expect(children.children[0]?.name).toBe("repo");
-    expect(fileSystemService.listChildren).toHaveBeenCalledWith("E:\\");
+    expect(fileSystemService.listChildren).toHaveBeenCalledWith("/");
   });
 
   it("exposes MCP status, reload, and resource reads through the bridge API", async () => {

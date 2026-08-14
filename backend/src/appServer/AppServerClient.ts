@@ -98,9 +98,7 @@ export class AppServerClient {
     }
 
     const proc = spawn(this.options.codexPath ?? "codex", ["app-server", "--listen", "stdio://"], {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-      shell: process.platform === "win32"
+      stdio: ["pipe", "pipe", "pipe"]
     });
 
     this.proc = proc;
@@ -110,6 +108,16 @@ export class AppServerClient {
 
     proc.stderr.on("data", (chunk) => {
       this.events.emit("stderr", Buffer.from(chunk).toString("utf8"));
+    });
+
+    proc.on("error", (error) => {
+      this.proc = null;
+      this.initPromise = null;
+      for (const pending of this.pending.values()) {
+        pending.reject(error);
+      }
+      this.pending.clear();
+      this.events.emit("processError", error);
     });
 
     proc.on("exit", (code, signal) => {
