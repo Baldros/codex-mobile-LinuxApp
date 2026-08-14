@@ -1,98 +1,91 @@
 # Codex Mobile
 
-App mobile interno em Expo + React Native + TypeScript.
+Internal Android app built with Expo, React Native, and TypeScript on Linux.
 
 ## Setup
 
-Instale as dependencias dentro desta pasta:
-
-```powershell
-cd E:\codex-mobile-app\mobile
-npm install
+```bash
+cd mobile
+npm ci
 ```
 
-## Desenvolvimento visual
+Start Metro or the browser preview:
 
-```powershell
-npx expo start
+```bash
+npm start
+npm run web
 ```
 
-Se o Metro mostrar `Unable to deserialize cloned data` ao ler o cache,
-limpe o cache do Expo/Metro e inicie novamente:
+If Metro reports a cache deserialization error:
 
-```powershell
+```bash
 npm run start:clear
 ```
 
-Para visualizar no navegador:
+The web preview uses `http://127.0.0.1:8787` by default. Override it for a
+development session with:
 
-```powershell
-npx expo start --web
+```bash
+export EXPO_PUBLIC_BRIDGE_URL=http://127.0.0.1:8787
+npm start
 ```
 
-Por padrao, no web o app tenta acessar:
+A physical Android device uses `http://127.0.0.1:18080`, which is the local end
+of the native SSH tunnel.
 
-```text
-http://127.0.0.1:8787
+## SSH Build Configuration
+
+`app.config.js` reads `CODEX_MOBILE_*` values at build time. A private-key
+configuration looks like this:
+
+```bash
+export CODEX_MOBILE_GATEWAY=ssh_tunnel
+export CODEX_MOBILE_SSH_TUNNEL_LOCAL_URL=http://127.0.0.1:18080
+export CODEX_MOBILE_SSH_REMOTE_HOSTS='[YOUR_IPV6]:22,YOUR_PUBLIC_IPV4:39223'
+export CODEX_MOBILE_SSH_USERNAME=codex-tunnel
+export CODEX_MOBILE_SSH_AUTH_MODE=private_key
+export CODEX_MOBILE_SSH_PRIVATE_KEY_PEM="$(< "$HOME/.ssh/codex_mobile_rsa")"
+export CODEX_MOBILE_SSH_REMOTE_API_HOST=127.0.0.1
+export CODEX_MOBILE_SSH_REMOTE_API_PORT=8787
+export CODEX_MOBILE_ALLOW_EMBEDDED_SSH_SECRET=true
 ```
 
-Em mobile fisico, o default e:
+The native module is in `modules/codex-ssh-tunnel`. Expo Go cannot load local
+native modules; use a development build or APK.
 
-```text
-http://127.0.0.1:18080
+Embedding an SSH secret is suitable only for controlled internal builds. Use a
+dedicated, restricted, per-device credential and rotate it when needed.
+
+## Android Build
+
+With Java 17 and the Android SDK configured:
+
+```bash
+cd android
+./gradlew :app:assembleDebug \
+  -PreactNativeArchitectures=arm64-v8a \
+  --no-daemon --console=plain --stacktrace
 ```
 
-Tambem e possivel sobrescrever no start:
+See [../build-guide/README.md](../build-guide/README.md) for the complete Linux
+host, SSH, and APK workflow.
 
-```powershell
-$env:EXPO_PUBLIC_BRIDGE_URL="http://127.0.0.1:8787"
-npx expo start
-```
+## Checks
 
-## Build config SSH
-
-Builds internos leem variaveis `CODEX_MOBILE_*` via `app.config.js`. Exemplo:
-
-```powershell
-$env:CODEX_MOBILE_GATEWAY="ssh_tunnel"
-$env:CODEX_MOBILE_SSH_TUNNEL_LOCAL_URL="http://127.0.0.1:18080"
-$env:CODEX_MOBILE_SSH_REMOTE_HOSTS="[SEU_IPV6]:22,SEU_IPV4_PUBLICO:39223"
-$env:CODEX_MOBILE_SSH_USERNAME="seu_usuario"
-$env:CODEX_MOBILE_SSH_PASSWORD="sua_senha"
-$env:CODEX_MOBILE_SSH_REMOTE_API_HOST="127.0.0.1"
-$env:CODEX_MOBILE_SSH_REMOTE_API_PORT="8787"
-$env:CODEX_MOBILE_ALLOW_EMBEDDED_SSH_SECRET="true"
-```
-
-O modulo Android inicial de tunnel fica em `modules/codex-ssh-tunnel`. Ele exige dev build/APK nativo; Expo Go nao carrega esse modulo local.
-
-## Scripts
-
-```powershell
+```bash
 npm run typecheck
 npm test
 npm run web
 ```
 
-## Funcionalidades
+## Structure
 
-- Health e capabilities do Bridge.
-- Selecao de repositorio (`GET /v1/workspaces`), com navegador de pastas (`GET /v1/filesystem/roots|children`) e adicionar/remover da allowlist (`POST /v1/workspaces/add|remove|restore`).
-- Selecao de modelo, reasoning effort e service tier (`GET /v1/settings/models`).
-- Gestao de conversas (`GET /v1/threads?cwd=...`), incluindo renomear e arquivar.
-- Chat em streaming (`POST /v1/threads/:id/runs/stream`) com renderizacao Markdown.
-- Timeline estruturada de atividade, ferramentas e aprovacoes human-in-the-loop, com cancelamento.
-- Mentions estruturadas no composer (`$app` / `$skill` / `$mcp`) e navegacao de recursos MCP.
-- Limites de conta e presets de modo de execucao (sandbox, approval policy, network).
-- Settings para URL do Bridge, build do tunnel SSH e defaults do Codex.
-
-## Estrutura
-
-- `src/screens/`: telas (`HomeScreen`, `SettingsScreen`, `ConversationsScreen`, `RepositoriesScreen`).
-  - `src/screens/home/` e `src/screens/settings/`: subcomponentes e `styles.ts` de cada tela grande.
-- `src/components/`: componentes reutilizaveis (`IconAction`, `MarkdownText`, `Screen`, ...).
-- `src/state/BridgeProvider.tsx`: estado central e cliente do bridge (contexto React, hook `useBridge`).
-- `src/domain/`: tipos e logica de dominio (tipos do bridge, mentions, partes de mensagem, parsing de historico, opcoes do composer).
-- `src/api/`: cliente HTTP/SSE. `src/transport/`: SSH tunnel manager.
-- `src/config/`, `src/storage/`, `src/theme/`, `src/utils/`: build config, preferencias, tema e utilidades.
-- `modules/codex-ssh-tunnel/`: modulo nativo Android do tunnel (exige dev build/APK).
+- `src/screens/`: primary app screens and screen-specific components.
+- `src/components/`: reusable UI components.
+- `src/state/BridgeProvider.tsx`: bridge client and central React state.
+- `src/domain/`: bridge types, mentions, message parsing, and composer logic.
+- `src/api/`: HTTP/SSE client.
+- `src/transport/`: SSH tunnel manager.
+- `src/config/`, `src/storage/`, `src/theme/`, `src/utils/`: configuration,
+  preferences, styling, and utilities.
+- `modules/codex-ssh-tunnel/`: native Android SSH tunnel module.

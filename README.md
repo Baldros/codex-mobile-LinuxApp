@@ -1,12 +1,16 @@
 # Codex Mobile App
 
-Mobile companion for using a local Codex setup from an Android device through a
-local bridge and an SSH tunnel.
+Android companion for a Codex installation running on a Linux host. The app
+reaches a loopback-only Node.js bridge through an SSH local port forward.
 
-The app is an operations client. It does not talk directly to the OpenAI API and
-does not import the Codex SDK in the mobile bundle. The desktop remains the
-trust boundary: Codex, OpenAI authentication, workspaces, filesystem access, MCP
-servers, apps, skills, and approvals all stay on the machine running the bridge.
+The mobile app is an operations client. Codex authentication, workspaces,
+filesystem access, MCP servers, apps, skills, and approvals stay on the Linux
+host.
+
+## Supported Host
+
+Linux is the supported development, bridge, SSH, and Android build environment.
+CI runs on Ubuntu 24.04 with Node.js 24 and Java 17.
 
 ## Architecture
 
@@ -14,182 +18,155 @@ servers, apps, skills, and approvals all stay on the machine running the bridge.
 Android app
   -> http://127.0.0.1:18080
   -> SSH local port forward
-  -> desktop 127.0.0.1:8787
+  -> Linux host 127.0.0.1:8787
   -> Codex Bridge (Node.js + TypeScript)
   -> codex app-server or @openai/codex-sdk
   -> local Codex CLI/runtime
 ```
 
-The default runtime is `app-server`, because it supports richer Codex client
-behavior: persisted conversations, settings, model/account data, apps, skills,
-MCP resources, streamed events, and human-in-the-loop approvals. The SDK runtime
-is still available as a simpler adapter, and `mock` is available for tests and
-local development without calling Codex.
+The default runtime is `app-server`, which supports persisted conversations,
+settings, model and account data, apps, skills, MCP resources, streaming, and
+human-in-the-loop approvals. The `sdk` runtime is a simpler adapter and `mock`
+is available for deterministic development and tests.
 
-Official Codex references:
+## Linux Quick Start
 
-- Codex app-server: https://developers.openai.com/codex/app-server
-- Codex SDK: https://developers.openai.com/codex/sdk
-- Codex CLI reference: https://developers.openai.com/codex/cli/reference
+Install the system prerequisites first: Git, Node.js 18 or newer, npm, the
+OpenSSH client, and Codex CLI. Java 17, the Android SDK, and `adb` are also
+needed to build and install the APK.
 
-## Stack
+Install Codex CLI using the official Linux installer, then run `codex` once to
+sign in:
 
-- Backend runtime: Node.js
-- Backend language: TypeScript
-- Backend package manager/scripts: npm
-- Mobile app: Expo + React Native + TypeScript
-- Android native tunnel module: Kotlin + Gradle, using JSch
-- Transport: HTTP/SSE over loopback, carried through SSH local port forwarding
+```bash
+curl -fsSL https://chatgpt.com/codex/install.sh | sh
+codex
+```
 
-Conventions:
+From the repository root:
 
-- Desktop bridge: `127.0.0.1:8787`
-- Mobile loopback tunnel: `127.0.0.1:18080`
-- Default mobile gateway: `ssh_tunnel`
-- Default bridge runtime: `app-server`
+```bash
+chmod +x scripts/*.sh mobile/android/gradlew
+./scripts/setup_linux.sh
+```
 
-## Repository Layout
+The setup script validates the host tools, creates the ignored local workspace
+allowlist, installs locked dependencies, and runs backend and mobile checks.
+For distro-specific packages, Android SDK setup, SSH hardening, and APK steps,
+see [build-guide/README.md](build-guide/README.md).
 
-- `backend/`: local Codex Bridge. Exposes the HTTP/SSE API consumed by mobile and
-  wraps the selected Codex runtime.
-- `mobile/`: Expo/React Native app plus the native Android SSH tunnel module.
-- `build-guide/`: interactive HTML guide for building, installing, securing, and
-  troubleshooting the Android APK.
-- `docs/`: architecture, API contract, SSH, security, and Android build notes.
-- `config/workspaces.allowlist.example`: template for allowed local workspaces.
-- `scripts/`: smoke tests and SSH validation helpers.
+## Run the Bridge
 
-## Backend
-
-```powershell
+```bash
 cd backend
-npm install
 npm run dev
 ```
 
-Useful checks:
+The bridge binds to `127.0.0.1:8787` by default. In another terminal:
 
-```powershell
-npm test
+```bash
+curl --fail --silent http://127.0.0.1:8787/health | jq
+```
+
+Select a different runtime when needed:
+
+```bash
+export CODEX_BRIDGE_RUNTIME=mock
+npm run dev
+```
+
+Supported values are `app-server` (default), `sdk`, and `mock`.
+
+Useful backend checks:
+
+```bash
+cd backend
 npm run typecheck
+npm test
 npm run build
 npm run smoke:app-server
 ```
 
-Runtime selection:
+The smoke test starts a temporary bridge and performs a real read-only Codex
+run, so it requires a signed-in Codex CLI.
 
-```powershell
-$env:CODEX_BRIDGE_RUNTIME = "app-server" # default
-npm run dev
-```
+## Run the Mobile App
 
-Supported values are:
-
-- `app-server`: uses `codex app-server` over stdio JSON-RPC. Recommended.
-- `sdk`: uses `@openai/codex-sdk`.
-- `mock`: deterministic runtime for tests and UI work.
-
-The bridge listens on `127.0.0.1:8787` by default. Confirm it with:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8787/health
-```
-
-## Mobile
-
-```powershell
+```bash
 cd mobile
-npm install
-npx expo start
-```
-
-For browser preview during development:
-
-```powershell
+npm ci
 npm run web
 ```
 
-Default URLs:
+Web preview connects directly to `http://127.0.0.1:8787`. A physical Android
+device uses `http://127.0.0.1:18080`, the local end of its SSH tunnel.
 
-- Web/dev preview: `http://127.0.0.1:8787`
-- Physical Android device with SSH tunnel: `http://127.0.0.1:18080`
+The native tunnel module lives in `mobile/modules/codex-ssh-tunnel/`. Expo Go
+cannot load it; use an Android development build or APK for tunnel testing.
 
-The Android tunnel is a local Expo native module under
-`mobile/modules/codex-ssh-tunnel/`. Expo Go cannot load this module; use a dev
-build or APK for the real Android tunnel flow.
+## Build an Android APK
 
-## Android APK Build
+After configuring the Android SDK and the `CODEX_MOBILE_*` environment
+variables described in the build guide:
 
-The complete build path is documented in the interactive guide:
-
-```text
-build-guide/index.html
+```bash
+cd mobile/android
+./gradlew :app:assembleDebug \
+  -PreactNativeArchitectures=arm64-v8a \
+  --no-daemon --console=plain --stacktrace
 ```
 
-Open it directly in a browser after cloning the repo. No local server is needed.
-It covers prerequisites, SSH setup, `CODEX_MOBILE_*` build variables, APK
-generation, install, security tradeoffs, and troubleshooting.
+The debug APK is written to:
 
-The short version is:
+```text
+mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
 
-1. Start the bridge on the desktop and confirm `/health`.
-2. Configure OpenSSH with a dedicated, unprivileged tunnel user.
-3. Set `CODEX_MOBILE_*` variables for the app build.
-4. Build the native Android project and release APK.
-5. Install the APK and validate the tunnel on Wi-Fi and 5G.
+Install it on a connected device with:
 
-Any SSH password or private key embedded into the APK must be treated as
-recoverable. Use a per-device key, restrict `PermitOpen` to the bridge loopback,
-and rotate credentials when needed.
+```bash
+adb install -r mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## Workspaces
 
-Allowed workspaces are read from:
+Allowed workspaces are read from `config/workspaces.allowlist`. The local file
+is ignored by Git; copy `config/workspaces.allowlist.example` or let the Linux
+setup script create it. Use one absolute Linux path per line.
 
-```text
-config/workspaces.allowlist
-```
-
-The file is ignored by Git. Use `config/workspaces.allowlist.example` as the
-template. The bridge also exposes workspace add/remove/restore endpoints, so the
+The bridge also exposes workspace add, remove, and restore endpoints, so the
 mobile app can update the allowlist without rebuilding the APK.
 
-## API
+## Security Boundary
 
-The bridge exposes an HTTP/SSE contract on loopback. The canonical endpoint
-reference is in `backend/README.md`.
+- Keep the bridge bound to `127.0.0.1`; do not expose port 8787 publicly.
+- Use an unprivileged SSH account dedicated to this tunnel.
+- Restrict that account with `AllowTcpForwarding local` and
+  `PermitOpen 127.0.0.1:8787`.
+- Use a unique SSH key for each device and rotate it if the APK or phone is
+  lost.
+- Treat every private key or password embedded in an APK as recoverable.
 
-Start with:
+Run the Linux readiness validator after the bridge and SSH server are running:
 
-- `GET /health`
-- `GET /v1/capabilities`
+```bash
+./scripts/validate_ssh_tunnel_ready.sh
+```
 
-The current API includes thread creation/listing/history, run streaming and
-reattach, cancellation, workspace management, filesystem browsing, model/config
-settings, account/rate-limit reads, apps, skills, MCP server/resource access,
-approvals, and SSH status.
+## Repository Layout
 
-## Documentation
+- `backend/`: loopback HTTP/SSE bridge and Codex runtime adapters.
+- `mobile/`: Expo/React Native app and native Android SSH tunnel module.
+- `build-guide/`: Linux host, SSH, Android SDK, build, and troubleshooting guide.
+- `config/`: workspace allowlist template.
+- `scripts/`: Linux setup, bridge smoke test, and SSH readiness validation.
 
-- `backend/README.md`: backend structure, runtime details, and endpoint list.
-- `mobile/README.md`: mobile setup, build config, features, and app structure.
-- `build-guide/README.md`: overview of the interactive Android build guide.
-- `docs/ARCHITECTURE.md`: architecture decisions and trust boundaries.
-- `docs/API_CONTRACT.md`: HTTP/SSE contract between mobile and bridge.
-- `docs/SSH_USER_SETUP_GUIDE.md`: dedicated SSH user setup.
-- `docs/SSH_TUNNEL_RUNBOOK.md`: SSH tunnel operation on local networks and 5G.
-- `docs/MOBILE_ANDROID_BUILD_PLAYBOOK.md`: Android build playbook.
-- `docs/SECURITY_DECISIONS.md`: embedded secret and tunnel security decisions.
-- `docs/IMPLEMENTATION_PLAN.md`: implementation status and remaining work.
+The canonical HTTP/SSE endpoint list is in
+[backend/README.md](backend/README.md). Mobile configuration and structure are
+documented in [mobile/README.md](mobile/README.md).
 
-## Current State
+Official Codex references:
 
-The bridge and mobile app are implemented and operational for the internal
-Android flow. Current functionality includes workspace selection, conversation
-management, streaming chat, Markdown rendering, activity/tool timeline,
-human-in-the-loop approvals, cancellation, model and reasoning controls, account
-limits, execution presets, apps/skills/MCP navigation, settings, and SSH tunnel
-management.
-
-The main remaining work is hardening failure states and improving pairing and
-operational security for broader internal use.
+- [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+- [Codex app-server](https://developers.openai.com/codex/app-server)
+- [Codex SDK](https://developers.openai.com/codex/sdk)
