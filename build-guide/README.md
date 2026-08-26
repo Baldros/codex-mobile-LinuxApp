@@ -4,6 +4,10 @@ This guide takes a Linux host from a fresh checkout to a working Android APK
 connected to the Codex Bridge over an SSH tunnel. Commands for Debian and Ubuntu
 are shown first; translate package names for another distribution.
 
+For the independently validated design that runs a second WireGuard interface
+alongside an existing corporate VPN, see
+[WIREGUARD_ANDROID_RUNBOOK.md](WIREGUARD_ANDROID_RUNBOOK.md).
+
 ## 1. Architecture and Security Boundary
 
 ```text
