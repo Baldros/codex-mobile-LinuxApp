@@ -19,6 +19,9 @@ react {
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
+    // Keep Metro within the memory budget of developer machines. Override with
+    // -PreactNativeMaxWorkers=N when more parallelism is desirable.
+    extraPackagerArgs = ["--max-workers", (findProperty('reactNativeMaxWorkers') ?: "1").toString()]
 
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'
@@ -50,7 +53,7 @@ react {
     //
     //   A list of extra flags to pass to the 'bundle' commands.
     //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
-    // extraPackagerArgs = []
+    // extraPackagerArgs is configured above to cap Metro's worker pool.
 
     /* Hermes Commands */
     //   The hermes compiler command to run. By default it is 'hermesc'
